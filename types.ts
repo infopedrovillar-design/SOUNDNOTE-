@@ -3,7 +3,7 @@ export interface UserProfile {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   photoURL?: string;
 }
 
@@ -19,7 +19,6 @@ export interface SongInfo {
 }
 
 export enum AppState {
-  LOGIN = 'LOGIN',
   ONBOARDING = 'ONBOARDING',
   HOME = 'HOME',
   SEARCH_TEXT = 'SEARCH_TEXT',

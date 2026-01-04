@@ -18,7 +18,7 @@ import {
   ChevronRight,
   TrendingUp,
   History,
-  LogIn
+  Clock
 } from 'lucide-react';
 
 const GENRES = ["Pop", "Rock", "Sertanejo", "Pagode", "Eletrônica", "Rap/Trap", "MPB", "Funk", "Gospel", "Internacional"];
@@ -26,7 +26,7 @@ const VOCAL_TYPES = ["Masculina", "Feminina", "Grupo", "Instrumental"];
 const ERAS = ["Anos 80/90", "Clássicos Antigos", "Início dos 2000", "Recente (Últimos anos)"];
 
 const App: React.FC = () => {
-  const [state, setState] = useState<AppState>(AppState.LOGIN);
+  const [state, setState] = useState<AppState>(AppState.ONBOARDING);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [library, setLibrary] = useState<SongInfo[]>([]);
   const [results, setResults] = useState<IdentifyCandidate[]>([]);
@@ -41,52 +41,32 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initApp = async () => {
+      setIsLoading(true);
       const savedUser = await dbService.getUser();
       const savedLib = await dbService.getLibrary();
       
       if (savedLib) setLibrary(savedLib);
       
-      if (savedUser) {
+      if (savedUser && savedUser.firstName) {
         setUser(savedUser);
-        if (!savedUser.firstName) {
-          setState(AppState.ONBOARDING);
-        } else {
-          setState(AppState.HOME);
-        }
+        setState(AppState.HOME);
       } else {
-        setState(AppState.LOGIN);
+        setState(AppState.ONBOARDING);
       }
+      setIsLoading(false);
     };
     initApp();
   }, []);
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    // Simulação de login com Google
-    setTimeout(async () => {
-      const mockGoogleUser: UserProfile = {
-        id: 'google_' + Math.random().toString(36).substr(2, 9),
-        email: 'usuario@gmail.com',
-        firstName: '',
-        lastName: '',
-        photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-      };
-      await dbService.saveUser(mockGoogleUser);
-      setUser(mockGoogleUser);
-      setIsLoading(false);
-      setState(AppState.ONBOARDING);
-    }, 1500);
-  };
-
   const finalizeOnboarding = async () => {
-    if (!onboardingName.first || !user) return;
-    const updatedUser = { 
-      ...user, 
+    if (!onboardingName.first) return;
+    const newUser: UserProfile = { 
+      id: 'user_' + Math.random().toString(36).substr(2, 9),
       firstName: onboardingName.first, 
       lastName: onboardingName.last 
     };
-    await dbService.saveUser(updatedUser);
-    setUser(updatedUser);
+    await dbService.saveUser(newUser);
+    setUser(newUser);
     setState(AppState.HOME);
   };
 
@@ -129,7 +109,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Fix: Explicitly cast to number for arithmetic operation to resolve TS error on line 136
   const favoriteGenre = library.length > 0 
     ? Object.entries(library.reduce((acc, curr) => {
         acc[curr.genre] = (acc[curr.genre] || 0) + 1;
@@ -144,34 +123,10 @@ const App: React.FC = () => {
     setFilters({});
   };
 
-  if (state === AppState.LOGIN) {
+  if (isLoading && state === AppState.ONBOARDING && !user) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-24 h-24 music-gradient rounded-[2rem] flex items-center justify-center mb-10 shadow-[0_0_50px_rgba(168,85,247,0.4)] animate-pulse">
-          <Music size={48} className="text-white" />
-        </div>
-        <h1 className="text-5xl font-black mb-4 tracking-tighter">SOUNDNOTE</h1>
-        <p className="text-slate-400 mb-12 max-w-sm text-lg">Seu assistente para resgatar memórias musicais esquecidas.</p>
-        
-        <button 
-          onClick={handleGoogleLogin}
-          disabled={isLoading}
-          className="flex items-center gap-4 bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-slate-100 transition-all shadow-xl active:scale-95 disabled:opacity-50"
-        >
-          {isLoading ? (
-            <Loader2 className="animate-spin" size={24} />
-          ) : (
-            <>
-              <svg className="w-6 h-6" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Entrar com Google
-            </>
-          )}
-        </button>
+        <Loader2 className="animate-spin text-purple-500" size={48} />
       </div>
     );
   }
@@ -179,23 +134,23 @@ const App: React.FC = () => {
   if (state === AppState.ONBOARDING) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-20 h-20 music-gradient rounded-3xl flex items-center justify-center mb-8 shadow-2xl">
-          <Sparkles size={40} />
+        <div className="w-20 h-20 music-gradient rounded-3xl flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(168,85,247,0.4)] animate-pulse">
+          <Music size={40} />
         </div>
-        <h1 className="text-4xl font-black mb-4">Quase lá!</h1>
-        <p className="text-slate-400 mb-10 max-w-sm">Como você gostaria de ser chamado no Soundnote?</p>
+        <h1 className="text-4xl font-black mb-4 tracking-tighter">SOUNDNOTE</h1>
+        <p className="text-slate-400 mb-10 max-w-sm">Bem-vindo ao resgatador de memórias musicais. Como podemos te chamar?</p>
         <div className="w-full max-w-xs space-y-4">
           <input 
             type="text" 
             placeholder="Seu primeiro nome"
-            className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
             value={onboardingName.first}
             onChange={e => setOnboardingName({...onboardingName, first: e.target.value})}
           />
           <input 
             type="text" 
             placeholder="Seu sobrenome"
-            className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
             value={onboardingName.last}
             onChange={e => setOnboardingName({...onboardingName, last: e.target.value})}
           />
@@ -204,7 +159,7 @@ const App: React.FC = () => {
             onClick={finalizeOnboarding}
             className="w-full py-4 music-gradient rounded-2xl font-bold shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            Começar Resgates
+            Começar Experiência
           </button>
         </div>
       </div>
@@ -230,11 +185,9 @@ const App: React.FC = () => {
             </button>
           )}
           <button onClick={() => setState(AppState.PROFILE)} className="p-1 bg-slate-900 rounded-xl hover:bg-slate-800 transition-colors overflow-hidden">
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="User" className="w-10 h-10 rounded-lg object-cover" />
-            ) : (
-              <div className="w-10 h-10 flex items-center justify-center"><User size={20} /></div>
-            )}
+            <div className="w-10 h-10 flex items-center justify-center bg-slate-800 rounded-lg">
+              <User size={20} className="text-purple-400" />
+            </div>
           </button>
         </div>
       </header>
@@ -251,7 +204,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="glass-card p-4 rounded-3xl col-span-2 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Resgates no Banco de Dados</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Resgates no Banco</p>
                   <p className="text-3xl font-black text-purple-400">{library.length} <span className="text-sm font-medium text-slate-400">músicas</span></p>
                 </div>
                 <TrendingUp size={32} className="text-purple-500/30" />
@@ -269,24 +222,28 @@ const App: React.FC = () => {
             </div>
 
             <div className="pt-4">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Histórico do Banco</h3>
-              {library.slice(0, 3).map(song => (
-                <div key={song.id} className="flex items-center gap-4 mb-3 p-3 glass-card rounded-2xl">
-                  <div className="w-10 h-10 music-gradient rounded-lg flex items-center justify-center flex-shrink-0"><Music size={18} /></div>
-                  <div className="flex-1 min-w-0"><p className="font-bold truncate text-sm">{song.name}</p><p className="text-[10px] text-slate-400 truncate">{song.artist}</p></div>
-                </div>
-              ))}
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Histórico Recente</h3>
+              {library.length === 0 ? (
+                <p className="text-slate-500 text-sm italic">Suas memórias aparecerão aqui...</p>
+              ) : (
+                library.slice(0, 3).map(song => (
+                  <div key={song.id} className="flex items-center gap-4 mb-3 p-3 glass-card rounded-2xl">
+                    <div className="w-10 h-10 music-gradient rounded-lg flex items-center justify-center flex-shrink-0"><Music size={18} /></div>
+                    <div className="flex-1 min-w-0"><p className="font-bold truncate text-sm">{song.name}</p><p className="text-[10px] text-slate-400 truncate">{song.artist}</p></div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
 
         {state === AppState.SEARCH_TEXT && (
           <div className="flex flex-col gap-6 animate-in slide-in-from-right duration-300">
-            <div className="space-y-2"><h2 className="text-2xl font-black">Resgatar da Memória</h2><p className="text-slate-400">O que você lembra? Pode ser uma parte da letra ou o estilo.</p></div>
+            <div className="space-y-2"><h2 className="text-2xl font-black">Resgatar da Memória</h2><p className="text-slate-400">O que você lembra? Trechos, estilo ou onde ouviu.</p></div>
             <textarea 
               autoFocus
               className="w-full bg-slate-900/50 border border-slate-800 rounded-3xl p-6 min-h-[180px] text-lg outline-none focus:ring-2 focus:ring-purple-500 transition-all resize-none"
-              placeholder="Ex: Tinha um refrão que falava sobre o mar e era uma voz feminina..."
+              placeholder="Ex: Tinha um refrão que falava sobre o mar e era uma voz feminina, estilo MPB..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -324,19 +281,19 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {isLoading && state !== AppState.LOGIN && (
+        {isLoading && state !== AppState.ONBOARDING && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="relative mb-8">
               <div className="w-24 h-24 rounded-full music-gradient opacity-20 animate-ping absolute top-0 left-0"></div>
               <div className="w-24 h-24 rounded-full border-4 border-purple-500/20 flex items-center justify-center"><Loader2 size={40} className="text-purple-500 animate-spin" /></div>
             </div>
-            <h3 className="text-xl font-bold">Conectando ao Banco de Memórias...</h3>
+            <h3 className="text-xl font-bold">Resgatando memórias...</h3>
           </div>
         )}
 
         {!isLoading && state === AppState.RESULTS && (
           <div className="flex flex-col gap-6 animate-in slide-in-from-bottom duration-500">
-            <h2 className="text-2xl font-black">Encontramos estes candidatos 👀</h2>
+            <h2 className="text-2xl font-black">Candidatos encontrados 👀</h2>
             {error && <div className="glass-card p-6 rounded-3xl text-center"><XCircle size={40} className="text-red-500 mx-auto mb-4" /><p className="font-bold text-red-400">{error}</p></div>}
             <div className="space-y-4">
               {results.map((c, i) => (
@@ -355,9 +312,9 @@ const App: React.FC = () => {
 
         {state === AppState.LIBRARY && (
           <div className="flex flex-col gap-6 animate-in slide-in-from-right duration-300">
-            <h2 className="text-2xl font-black">Banco de Dados Pessoal</h2>
+            <h2 className="text-2xl font-black">Banco de Memórias</h2>
             {library.length === 0 ? (
-              <div className="text-center py-20 glass-card rounded-3xl"><Music size={48} className="mx-auto mb-4 text-slate-800" /><p className="text-slate-400">Sua biblioteca está sincronizada e vazia.</p></div>
+              <div className="text-center py-20 glass-card rounded-3xl"><Music size={48} className="mx-auto mb-4 text-slate-800" /><p className="text-slate-400">Sua biblioteca está vazia.</p></div>
             ) : (
               <div className="grid gap-3">
                 {library.map(song => (
@@ -376,11 +333,11 @@ const App: React.FC = () => {
           <div className="flex flex-col gap-8 animate-in fade-in duration-300">
             <div className="flex flex-col items-center gap-4 py-6">
               <div className="w-24 h-24 music-gradient rounded-[2rem] flex items-center justify-center shadow-2xl overflow-hidden">
-                {user?.photoURL ? <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" /> : <User size={48} />}
+                <User size={48} className="text-white" />
               </div>
               <div className="text-center">
                 <h2 className="text-3xl font-black">{user?.firstName} {user?.lastName}</h2>
-                <p className="text-slate-500 text-sm font-medium">{user?.email}</p>
+                <p className="text-slate-500 text-sm font-medium">Usuário Soundnote</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -389,12 +346,14 @@ const App: React.FC = () => {
             </div>
             <button 
               onClick={async () => {
-                await dbService.clearAll();
-                window.location.reload();
+                if (confirm('Deseja realmente apagar todos os seus dados?')) {
+                  await dbService.clearAll();
+                  window.location.reload();
+                }
               }}
               className="w-full py-4 bg-red-500/10 text-red-500 rounded-2xl font-bold border border-red-500/20 mt-10"
             >
-              Sair e Limpar Banco de Dados
+              Limpar Banco de Memórias
             </button>
           </div>
         )}
@@ -409,7 +368,7 @@ const App: React.FC = () => {
       )}
 
       <footer className="w-full text-center py-6 text-slate-600 text-xs font-bold uppercase tracking-widest">
-        Soundnote Cloud &copy; {new Date().getFullYear()} — Banco de Memórias Ativo
+        Soundnote &copy; {new Date().getFullYear()} — Banco de Memórias Ativo
       </footer>
     </div>
   );
