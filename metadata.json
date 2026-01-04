@@ -1,0 +1,7 @@
+{
+  "name": "SOUNDNOTE",
+  "description": "Um identificador de músicas rápido, simples e direto que identifica faixas via áudio ou texto e gera mini-relatórios informativos.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
